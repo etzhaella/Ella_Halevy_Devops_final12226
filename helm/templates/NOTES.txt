@@ -1,0 +1,23 @@
+1. Get the application URL by running these commands:
+{{- if .Values.ingress.enabled }}
+{{- range $host := .Values.ingress.hosts }}
+  {{- range .paths }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $host.host }}{{ .path }}
+  {{- end }}
+{{- end }}
+{{- else if contains "NodePort" .Values.service.type }}
+  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "aws-monitor-flask.fullname" . }})
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo http://$NODE_IP:$NODE_PORT
+{{- else if contains "LoadBalancer" .Values.service.type }}
+  NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+  kubectl --namespace {{ .Release.Namespace }} get services -w {{ include "aws-monitor-flask.fullname" . }}
+{{- else if contains "ClusterIP" .Values.service.type }}
+  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "aws-monitor-flask.fullname" . }} 5000:{{ .Values.service.port }}
+  Then visit http://127.0.0.1:5000
+{{- end }}
+
+2. If you enabled AWS credentials from a secret, ensure the secret exists:
+   kubectl create secret generic aws-monitor-secret --from-literal=AWS_ACCESS_KEY_ID=xxx --from-literal=AWS_SECRET_ACCESS_KEY=xxx -n {{ .Release.Namespace }}
+
+3. The Flask app displays EC2 instances, VPCs, Load Balancers, and AMIs from your AWS account.

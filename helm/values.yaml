@@ -1,0 +1,114 @@
+# Default values for aws-monitor-flask Helm chart.
+# This is a YAML-formatted file. Declare variables to be passed into your templates.
+
+# Number of replicas for the Flask application
+replicaCount: 1
+
+# Docker image for the AWS monitoring Flask app (from Jenkins/Docker Hub)
+image:
+  repository: etzhaella/flask-aws-monitor
+  tag: latest
+  pullPolicy: IfNotPresent
+
+# Optional: use existing image pull secret (e.g. for private registry)
+imagePullSecrets: []
+
+# Application name (used for labels and selectors)
+nameOverride: ""
+fullnameOverride: ""
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 80
+  # Target port must match the container port (Flask in Dockerfile uses 5000)
+  targetPort: 5000
+
+# Ingress configuration (optional; enable for external HTTP access)
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: aws-monitor.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: aws-monitor-tls
+  #    hosts:
+  #      - aws-monitor.local
+
+# Environment variables for the Flask app (non-sensitive)
+# AWS credentials should be provided via secret (see below) or IAM role for service account
+env:
+  # AWS region (app defaults to us-east-1 if not set)
+  AWS_DEFAULT_REGION: "us-east-1"
+  # FLASK_RUN_HOST is set by the image; override here if needed
+  FLASK_RUN_PORT: "5000"
+
+# Use a Kubernetes secret for AWS credentials (recommended for production)
+# Create secret manually: kubectl create secret generic aws-monitor-secret --from-literal=AWS_ACCESS_KEY_ID=xxx --from-literal=AWS_SECRET_ACCESS_KEY=xxx
+awsCredentials:
+  # Set to true to mount AWS credentials from a secret
+  useExistingSecret: false
+  # Name of the existing secret containing AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
+  secretName: aws-monitor-secret
+  # Keys in the secret (defaults match common convention)
+  secretKeys:
+    accessKeyId: AWS_ACCESS_KEY_ID
+    secretAccessKey: AWS_SECRET_ACCESS_KEY
+
+# Resource limits and requests (scaling options)
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+# Pod disruption budget (optional)
+podDisruptionBudget: {}
+  # minAvailable: 1
+  # maxUnavailable: 0
+
+# Node selector and tolerations (optional)
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+# Container security context
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop:
+      - ALL
+
+# Liveness and readiness probes
+livenessProbe:
+  httpGet:
+    path: /
+    port: 5000
+  initialDelaySeconds: 15
+  periodSeconds: 20
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: 5000
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 2

@@ -15,6 +15,14 @@ This configuration provisions an AWS EC2 instance prepared to run the Flask appl
 
 From the folder `builder-EllaHalevy`:
 
+Set your IP for SSH access (required; do not commit this value):
+
+```bash
+export TF_VAR_my_ip="YOUR_IP/32"
+```
+
+Then:
+
 ```bash
 terraform init
 terraform plan
